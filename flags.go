@@ -230,14 +230,14 @@ func isStructFieldExported(field reflect.StructField) bool {
 }
 
 func indirectValue(reflectValue reflect.Value) reflect.Value {
-	for reflectValue.Kind() == reflect.Ptr {
+	if reflectValue.Kind() == reflect.Ptr {
 		return reflectValue.Elem()
 	}
 	return reflectValue
 }
 
 func indirectType(reflectType reflect.Type) reflect.Type {
-	for reflectType.Kind() == reflect.Ptr || reflectType.Kind() == reflect.Slice {
+	if reflectType.Kind() == reflect.Ptr || reflectType.Kind() == reflect.Slice {
 		return reflectType.Elem()
 	}
 	return reflectType
