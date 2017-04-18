@@ -89,7 +89,7 @@ func TestFlagsFromStructBoolHasNoValue(t *testing.T) {
 	assert.EqualValues(t, ([]cli.Flag)(nil), result)
 }
 
-func TestFlagsFromStructBoolTHasNoValue(t *testing.T) {
+func TestFlagsFromStructBoolThasNoValue(t *testing.T) {
 	sample := struct {
 		BoolT bool `name:"boolt"       type:"boolt"       usage:"hello" value:"true"`
 	}{}
