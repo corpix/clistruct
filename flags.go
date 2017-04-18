@@ -27,6 +27,8 @@ import (
 	"time"
 
 	"github.com/urfave/cli"
+	"strconv"
+	"strings"
 )
 
 const (
@@ -38,50 +40,157 @@ const (
 )
 
 const (
-	boolType        = "bool"
-	boolTType       = "boolt"
-	float64Type     = "float64"
-	intType         = "int"
-	int64Type       = "int64"
-	intSliceType    = "intslice"
-	int64SliceType  = "int64slice"
-	stringType      = "string"
-	stringSliceType = "stringslice"
-	uintType        = "uint"
-	uint64Type      = "uint64"
-	durationType    = "duration"
-	genericType     = "generic"
+	listDelimiter = ","
+)
+
+const (
+	boolTypeTag        = "bool"
+	boolTTypeTag       = "boolt"
+	float64TypeTag     = "float64"
+	intTypeTag         = "int"
+	int64TypeTag       = "int64"
+	intSliceTypeTag    = "intslice"
+	int64SliceTypeTag  = "int64slice"
+	stringTypeTag      = "string"
+	stringSliceTypeTag = "stringslice"
+	uintTypeTag        = "uint"
+	uint64TypeTag      = "uint64"
+	durationTypeTag    = "duration"
+	genericTypeTag     = "generic"
 )
 
 var (
-	fieldToFlag = map[string]cli.Flag{
-		typeName(new(bool)):          new(cli.BoolFlag),
-		typeName(new(uint)):          new(cli.UintFlag),
-		typeName(new(uint64)):        new(cli.Uint64Flag),
-		typeName(new(int)):           new(cli.IntFlag),
-		typeName(new(int64)):         new(cli.Int64Flag),
-		typeName(new(float64)):       new(cli.Float64Flag),
-		typeName(new([]int)):         new(cli.IntSliceFlag),
-		typeName(new([]int64)):       new(cli.Int64SliceFlag),
-		typeName(new(string)):        new(cli.StringFlag),
-		typeName(new([]string)):      new(cli.StringSliceFlag),
-		typeName(new(time.Duration)): new(cli.DurationFlag),
-	}
+	boolType        = typeName(*new(bool))
+	uintType        = typeName(*new(uint))
+	uint64Type      = typeName(*new(uint64))
+	intType         = typeName(*new(int))
+	int64Type       = typeName(*new(int64))
+	float64Type     = typeName(*new(float64))
+	intSliceType    = typeName(*new([]int))
+	int64SliceType  = typeName(*new([]int64))
+	stringType      = typeName(*new(string))
+	stringSliceType = typeName(*new([]string))
+	durationType    = typeName(*new(time.Duration))
+)
 
-	fieldTypeTagToFlag = map[string]cli.Flag{
+var (
+	uintValueType        = uintType
+	uint64ValueType      = uint64Type
+	intValueType         = intType
+	int64ValueType       = int64Type
+	float64ValueType     = float64Type
+	intSliceValueType    = typeName(new(cli.IntSlice))
+	int64SliceValueType  = typeName(new(cli.Int64Slice))
+	stringValueType      = stringType
+	stringSliceValueType = typeName(new(cli.StringSlice))
+	durationValueType    = durationType
+)
+
+var (
+	typeToFlag = map[string]cli.Flag{
 		boolType:        new(cli.BoolFlag),
-		boolTType:       new(cli.BoolTFlag),
-		float64Type:     new(cli.Float64Flag),
+		uintType:        new(cli.UintFlag),
+		uint64Type:      new(cli.Uint64Flag),
 		intType:         new(cli.IntFlag),
 		int64Type:       new(cli.Int64Flag),
+		float64Type:     new(cli.Float64Flag),
 		intSliceType:    new(cli.IntSliceFlag),
 		int64SliceType:  new(cli.Int64SliceFlag),
 		stringType:      new(cli.StringFlag),
 		stringSliceType: new(cli.StringSliceFlag),
-		uintType:        new(cli.UintFlag),
-		uint64Type:      new(cli.Uint64Flag),
 		durationType:    new(cli.DurationFlag),
-		genericType:     new(cli.GenericFlag),
+	}
+
+	typeTagToFlag = map[string]cli.Flag{
+		boolTypeTag:        *new(cli.BoolFlag),
+		boolTTypeTag:       *new(cli.BoolTFlag),
+		float64TypeTag:     *new(cli.Float64Flag),
+		intTypeTag:         *new(cli.IntFlag),
+		int64TypeTag:       *new(cli.Int64Flag),
+		intSliceTypeTag:    *new(cli.IntSliceFlag),
+		int64SliceTypeTag:  *new(cli.Int64SliceFlag),
+		stringTypeTag:      *new(cli.StringFlag),
+		stringSliceTypeTag: *new(cli.StringSliceFlag),
+		uintTypeTag:        *new(cli.UintFlag),
+		uint64TypeTag:      *new(cli.Uint64Flag),
+		durationTypeTag:    *new(cli.DurationFlag),
+		genericTypeTag:     *new(cli.GenericFlag),
+	}
+
+	flagsWithoutValues = map[string]bool{
+		boolType: true,
+	}
+
+	valueFromString = map[string]func(string) (interface{}, error){
+		uintValueType: func(v string) (interface{}, error) {
+			u, err := strconv.ParseUint(v, 10, 32)
+			if err != nil {
+				return nil, err
+			}
+			return uint(u), nil
+		},
+		uint64ValueType: func(v string) (interface{}, error) {
+			return strconv.ParseUint(v, 10, 64)
+		},
+		intValueType: func(v string) (interface{}, error) {
+			i, err := strconv.ParseInt(v, 10, 32)
+			if err != nil {
+				return nil, err
+			}
+			return int(i), nil
+		},
+		int64ValueType: func(v string) (interface{}, error) {
+			return strconv.ParseInt(v, 10, 64)
+		},
+		float64ValueType: func(v string) (interface{}, error) {
+			return strconv.ParseFloat(v, 64)
+		},
+		intSliceValueType: func(v string) (interface{}, error) {
+			var (
+				ints     = strings.Split(v, listDelimiter)
+				intSlice = make(cli.IntSlice, len(ints))
+				i        int64
+				err      error
+			)
+
+			for k, v := range ints {
+				i, err = strconv.ParseInt(v, 10, 32)
+				if err != nil {
+					return nil, err
+				}
+				intSlice[k] = int(i)
+			}
+
+			return &intSlice, nil
+		},
+		int64SliceValueType: func(v string) (interface{}, error) {
+			var (
+				ints       = strings.Split(v, listDelimiter)
+				int64Slice = make(cli.Int64Slice, len(ints))
+				i          int64
+				err        error
+			)
+
+			for k, v := range ints {
+				i, err = strconv.ParseInt(v, 10, 64)
+				if err != nil {
+					return nil, err
+				}
+				int64Slice[k] = i
+			}
+
+			return &int64Slice, nil
+		},
+		stringValueType: func(v string) (interface{}, error) {
+			return v, nil
+		},
+		stringSliceValueType: func(v string) (interface{}, error) {
+			stringSlice := cli.StringSlice(strings.Split(v, listDelimiter))
+			return &stringSlice, nil
+		},
+		durationValueType: func(v string) (interface{}, error) {
+			return time.ParseDuration(v)
+		},
 	}
 )
 
@@ -128,11 +237,21 @@ func flagsFromStruct(v interface{}) ([]cli.Flag, error) {
 
 		flags = append(
 			flags,
-			flag,
+			indirectValue(reflect.ValueOf(flag)).
+				Interface().(cli.Flag),
 		)
 	}
 
 	return flags, nil
+}
+
+func parseValueFromString(v string, targetType reflect.Type) (interface{}, error) {
+	parser, ok := valueFromString[targetType.String()]
+	if ok {
+		return parser(v)
+	}
+
+	return v, nil
 }
 
 func newFlagFromStructField(field reflect.StructField) cli.Flag {
@@ -140,22 +259,29 @@ func newFlagFromStructField(field reflect.StructField) cli.Flag {
 		t cli.Flag
 	)
 
-	t = fieldTypeTagToFlag[field.Tag.Get(typeTag)]
+	t = typeTagToFlag[field.Tag.Get(typeTag)]
 	if t == nil {
-		t = fieldToFlag[field.Type.String()]
+		t = typeToFlag[field.Type.String()]
 	}
 	if t == nil {
-		t = fieldTypeTagToFlag[genericType]
+		t = typeTagToFlag[genericTypeTag]
 	}
 
-	return reflect.New(reflect.TypeOf(t).Elem()).
+	return reflect.
+		New(
+			indirectType(
+				reflect.TypeOf(t),
+			),
+		).
 		Interface().(cli.Flag)
 }
 
 func flagFromStructField(field reflect.StructField) (cli.Flag, error) {
 	var (
-		flag cli.Flag
-		err  error
+		flag       cli.Flag
+		valueField reflect.Value
+		value      interface{}
+		err        error
 	)
 
 	flag = newFlagFromStructField(field)
@@ -168,9 +294,25 @@ func flagFromStructField(field reflect.StructField) (cli.Flag, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = setStructField(flag, "Value", field.Tag.Get(valueTag))
-	if err != nil {
-		return nil, err
+
+	valueString := field.Tag.Get(valueTag)
+	if valueString != "" && !flagsWithoutValues[field.Type.String()] {
+		valueField, err = getStructField(flag, "Value")
+		if err != nil {
+			return nil, err
+		}
+		value, err = parseValueFromString(
+			valueString,
+			valueField.Type(),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		err = setStructField(flag, "Value", value)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return flag, nil
@@ -184,100 +326,4 @@ func FlagsToStruct(context *cli.Context, v interface{}) error {
 	}
 
 	return nil
-}
-
-//
-
-// func convertType(field reflect.Value) {
-// 	switch field.Interface().(type) {
-// 	case bool:
-// 		strconv.ParseBool(reflectValue.Interface().(string))
-// 	case uint:
-// 	case uint64:
-// 	case int:
-// 	case int64:
-// 	case float64:
-// 	case []int:
-// 	case []int64:
-// 	case string:
-// 	case []string:
-// 	case time.Duration:
-// 	}
-// }
-
-func getStructField(v interface{}, fieldName string) (reflect.Value, error) {
-	field := indirectValue(reflect.ValueOf(v)).
-		FieldByName(fieldName)
-
-	if !field.IsValid() || !field.CanSet() {
-		return reflect.Value{}, NewErrInvalid(v)
-	}
-
-	return field, nil
-}
-
-func setStructField(v interface{}, fieldName string, value interface{}) error {
-	field, err := getStructField(v, fieldName)
-	if err != nil {
-		return err
-	}
-
-	reflectValue := reflect.ValueOf(value)
-
-	if field.Type() != reflectValue.Type() {
-		return NewErrTypeMistmatch(
-			field.Type().String(),
-			reflectValue.Type().String(),
-		)
-	}
-
-	field.Set(reflectValue)
-
-	return nil
-}
-
-func checkValue(v interface{}) error {
-	val := reflect.ValueOf(v)
-	if val.Kind() != reflect.Ptr {
-		return NewErrPtrRequired(v)
-	}
-
-	return nil
-}
-
-func shouldBeStruct(reflectValue reflect.Value) error {
-	if reflectValue.Kind() != reflect.Struct {
-		return NewErrInvalidKind(
-			reflect.Struct,
-			reflectValue.Kind(),
-		)
-	}
-
-	return nil
-}
-
-func isStructFieldExported(field reflect.StructField) bool {
-	// From reflect docs:
-	// PkgPath is the package path that qualifies a lower case (unexported)
-	// field name. It is empty for upper case (exported) field names.
-	// See https://golang.org/ref/spec#Uniqueness_of_identifiers
-	return field.PkgPath == ""
-}
-
-func indirectValue(reflectValue reflect.Value) reflect.Value {
-	if reflectValue.Kind() == reflect.Ptr {
-		return reflectValue.Elem()
-	}
-	return reflectValue
-}
-
-func indirectType(reflectType reflect.Type) reflect.Type {
-	if reflectType.Kind() == reflect.Ptr || reflectType.Kind() == reflect.Slice {
-		return reflectType.Elem()
-	}
-	return reflectType
-}
-
-func typeName(v interface{}) string {
-	return indirectType(reflect.TypeOf(v)).String()
 }

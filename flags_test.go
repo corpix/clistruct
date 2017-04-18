@@ -24,21 +24,50 @@ package clistruct
 
 import (
 	"testing"
+	"time"
 
-	"github.com/davecgh/go-spew/spew"
+	"github.com/stretchr/testify/assert"
+	"github.com/urfave/cli"
 )
 
-func TestDev(t *testing.T) {
-	spew.Dump(fieldToFlag)
+func TestFlagsFromStructWithTags(t *testing.T) {
 	type custom struct{}
-	v := struct {
-		Foo string `name:"to-foo" usage:"just don't"`
-		Bbb []int64
-		Ggg []float64
-		Bar int64 `type:"int"`
-		Hhh bool
-		Baz custom
+
+	sample := struct {
+		Bool        bool          `name:"bool"        type:"bool"        usage:"hello" value:"true"`
+		BoolT       bool          `name:"boolt"       type:"boolt"       usage:"hello" value:"true"`
+		UInt        uint          `name:"uint"        type:"uint"        usage:"hello" value:"1"`
+		UInt64      uint64        `name:"uint64"      type:"uint64"      usage:"hello" value:"1"`
+		Int         int           `name:"int"         type:"int"         usage:"hello" value:"1"`
+		Int64       int64         `name:"int64"       type:"int64"       usage:"hello" value:"-1"`
+		Float64     float64       `name:"float64"     type:"float64"     usage:"hello" value:"1.5"`
+		IntSlice    []int         `name:"intslice"    type:"intslice"    usage:"hello" value:"1,2,3,-1"`
+		Int64Slice  []int64       `name:"int64slice"  type:"int64slice"  usage:"hello" value:"1,2,3,-1"`
+		String      string        `name:"string"      type:"string"      usage:"hello" value:"some string"`
+		StringSlice []string      `name:"stringslice" type:"stringslice" usage:"hello" value:"some,string,slice"`
+		Duration    time.Duration `name:"duration"    type:"duration"    usage:"hello" value:"2h1m10s"`
+		Custom      custom        `name:"custom"      type:"generic"     usage:"hello"`
 	}{}
-	flags, err := FlagsFromStruct(&v)
-	spew.Dump(flags, err)
+	flags := []cli.Flag{
+		cli.BoolFlag{Name: "bool", Usage: "hello"},
+		cli.BoolTFlag{Name: "boolt", Usage: "hello"},
+		cli.UintFlag{Name: "uint", Usage: "hello", Value: uint(1)},
+		cli.Uint64Flag{Name: "uint64", Usage: "hello", Value: uint64(1)},
+		cli.IntFlag{Name: "int", Usage: "hello", Value: 1},
+		cli.Int64Flag{Name: "int64", Usage: "hello", Value: int64(-1)},
+		cli.Float64Flag{Name: "float64", Usage: "hello", Value: float64(1.5)},
+		cli.IntSliceFlag{Name: "intslice", Usage: "hello", Value: &cli.IntSlice{1, 2, 3, -1}},
+		cli.Int64SliceFlag{Name: "int64slice", Usage: "hello", Value: &cli.Int64Slice{1, 2, 3, -1}},
+		cli.StringFlag{Name: "string", Usage: "hello", Value: "some string"},
+		cli.StringSliceFlag{Name: "stringslice", Usage: "hello", Value: &cli.StringSlice{"some", "string", "slice"}},
+		cli.DurationFlag{Name: "duration", Usage: "hello", Value: (2 * 60 * time.Minute) + (time.Minute) + (10 * time.Second)},
+		cli.GenericFlag{Name: "custom", Usage: "hello"},
+	}
+
+	result, err := FlagsFromStruct(&sample)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, flags, result)
 }
