@@ -106,3 +106,23 @@ func (e *ErrTypeMistmatch) Error() string {
 func NewErrTypeMistmatch(want string, got string) error {
 	return &ErrTypeMistmatch{want, got}
 }
+
+//
+
+// ErrFlagTypeCanNotHaveValue is an error indicating that
+// flag type with specified name takes no value.
+type ErrFlagTypeCanNotHaveValue struct {
+	t string
+}
+
+func (e *ErrFlagTypeCanNotHaveValue) Error() string {
+	return fmt.Sprintf(
+		"Flag of type '%s' can not have value",
+		e.t,
+	)
+}
+
+// NewErrFlagTypeCanNotHaveValue creates new ErrFlagTypeCanNotHaveValue.
+func NewErrFlagTypeCanNotHaveValue(t string) error {
+	return &ErrFlagTypeCanNotHaveValue{t}
+}

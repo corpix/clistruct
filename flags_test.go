@@ -34,8 +34,8 @@ func TestFlagsFromStructWithTags(t *testing.T) {
 	type custom struct{}
 
 	sample := struct {
-		Bool        bool          `name:"bool"        type:"bool"        usage:"hello" value:"true"`
-		BoolT       bool          `name:"boolt"       type:"boolt"       usage:"hello" value:"true"`
+		Bool        bool          `name:"bool"        type:"bool"        usage:"hello"`
+		BoolT       bool          `name:"boolt"       type:"boolt"       usage:"hello"`
 		UInt        uint          `name:"uint"        type:"uint"        usage:"hello" value:"1"`
 		UInt64      uint64        `name:"uint64"      type:"uint64"      usage:"hello" value:"1"`
 		Int         int           `name:"int"         type:"int"         usage:"hello" value:"1"`
@@ -70,4 +70,36 @@ func TestFlagsFromStructWithTags(t *testing.T) {
 		return
 	}
 	assert.EqualValues(t, flags, result)
+}
+
+func TestFlagsFromStructBoolHasNoValue(t *testing.T) {
+	sample := struct {
+		Bool bool `name:"bool"        type:"bool"        usage:"hello" value:"true"`
+	}{}
+
+	result, err := FlagsFromStruct(&sample)
+	assert.NotNil(t, err)
+	switch err.(type) {
+	case *ErrFlagTypeCanNotHaveValue:
+	default:
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, ([]cli.Flag)(nil), result)
+}
+
+func TestFlagsFromStructBoolTHasNoValue(t *testing.T) {
+	sample := struct {
+		BoolT bool `name:"boolt"       type:"boolt"       usage:"hello" value:"true"`
+	}{}
+
+	result, err := FlagsFromStruct(&sample)
+	assert.NotNil(t, err)
+	switch err.(type) {
+	case *ErrFlagTypeCanNotHaveValue:
+	default:
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, ([]cli.Flag)(nil), result)
 }

@@ -296,6 +296,9 @@ func flagFromStructField(field reflect.StructField) (cli.Flag, error) {
 	}
 
 	valueString := field.Tag.Get(valueTag)
+	if valueString != "" && flagsWithoutValues[field.Type.String()] {
+		return nil, NewErrFlagTypeCanNotHaveValue(field.Type.String())
+	}
 	if valueString != "" && !flagsWithoutValues[field.Type.String()] {
 		valueField, err = getStructField(flag, "Value")
 		if err != nil {
