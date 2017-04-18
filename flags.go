@@ -24,11 +24,11 @@ package clistruct
 
 import (
 	"reflect"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/urfave/cli"
-	"strconv"
-	"strings"
 )
 
 const (
@@ -87,37 +87,67 @@ var (
 )
 
 var (
-	typeToFlag = map[string]cli.Flag{
-		boolType:        *new(cli.BoolFlag),
-		uintType:        *new(cli.UintFlag),
-		uint64Type:      *new(cli.Uint64Flag),
-		intType:         *new(cli.IntFlag),
-		int64Type:       *new(cli.Int64Flag),
-		float64Type:     *new(cli.Float64Flag),
-		intSliceType:    *new(cli.IntSliceFlag),
-		int64SliceType:  *new(cli.Int64SliceFlag),
-		stringType:      *new(cli.StringFlag),
-		stringSliceType: *new(cli.StringSliceFlag),
-		durationType:    *new(cli.DurationFlag),
-	}
-
 	typeTagToFlag = map[string]cli.Flag{
 		boolTypeTag:        *new(cli.BoolFlag),
 		boolTTypeTag:       *new(cli.BoolTFlag),
-		float64TypeTag:     *new(cli.Float64Flag),
+		uintTypeTag:        *new(cli.UintFlag),
+		uint64TypeTag:      *new(cli.Uint64Flag),
 		intTypeTag:         *new(cli.IntFlag),
 		int64TypeTag:       *new(cli.Int64Flag),
+		float64TypeTag:     *new(cli.Float64Flag),
 		intSliceTypeTag:    *new(cli.IntSliceFlag),
 		int64SliceTypeTag:  *new(cli.Int64SliceFlag),
 		stringTypeTag:      *new(cli.StringFlag),
 		stringSliceTypeTag: *new(cli.StringSliceFlag),
-		uintTypeTag:        *new(cli.UintFlag),
-		uint64TypeTag:      *new(cli.Uint64Flag),
 		durationTypeTag:    *new(cli.DurationFlag),
 		genericTypeTag:     *new(cli.GenericFlag),
 	}
 
-	flagsWithoutValues = map[string]bool{
+	typeTagToFlagValue = map[string]func(*cli.Context, string) interface{}{
+		boolTypeTag:        func(ctx *cli.Context, key string) interface{} { return ctx.Bool(key) },
+		boolTTypeTag:       func(ctx *cli.Context, key string) interface{} { return ctx.BoolT(key) },
+		uintTypeTag:        func(ctx *cli.Context, key string) interface{} { return ctx.Uint(key) },
+		uint64TypeTag:      func(ctx *cli.Context, key string) interface{} { return ctx.Uint64(key) },
+		intTypeTag:         func(ctx *cli.Context, key string) interface{} { return ctx.Int(key) },
+		int64TypeTag:       func(ctx *cli.Context, key string) interface{} { return ctx.Int64(key) },
+		float64TypeTag:     func(ctx *cli.Context, key string) interface{} { return ctx.Float64(key) },
+		intSliceTypeTag:    func(ctx *cli.Context, key string) interface{} { return ctx.IntSlice(key) },
+		int64SliceTypeTag:  func(ctx *cli.Context, key string) interface{} { return ctx.Int64Slice(key) },
+		stringTypeTag:      func(ctx *cli.Context, key string) interface{} { return ctx.String(key) },
+		stringSliceTypeTag: func(ctx *cli.Context, key string) interface{} { return ctx.StringSlice(key) },
+		durationTypeTag:    func(ctx *cli.Context, key string) interface{} { return ctx.Duration(key) },
+		genericTypeTag:     func(ctx *cli.Context, key string) interface{} { return ctx.Generic(key) },
+	}
+
+	typeToFlag = map[string]cli.Flag{
+		boolType:        typeTagToFlag[boolTypeTag],
+		uintType:        typeTagToFlag[uintTypeTag],
+		uint64Type:      typeTagToFlag[uint64TypeTag],
+		intType:         typeTagToFlag[intTypeTag],
+		int64Type:       typeTagToFlag[int64TypeTag],
+		float64Type:     typeTagToFlag[float64TypeTag],
+		intSliceType:    typeTagToFlag[intSliceTypeTag],
+		int64SliceType:  typeTagToFlag[int64SliceTypeTag],
+		stringType:      typeTagToFlag[stringTypeTag],
+		stringSliceType: typeTagToFlag[stringSliceTypeTag],
+		durationType:    typeTagToFlag[durationTypeTag],
+	}
+
+	typeToFlagValue = map[string]func(*cli.Context, string) interface{}{
+		boolType:        typeTagToFlagValue[boolTypeTag],
+		uintType:        typeTagToFlagValue[uintTypeTag],
+		uint64Type:      typeTagToFlagValue[uint64TypeTag],
+		intType:         typeTagToFlagValue[intTypeTag],
+		int64Type:       typeTagToFlagValue[int64TypeTag],
+		float64Type:     typeTagToFlagValue[float64TypeTag],
+		intSliceType:    typeTagToFlagValue[intSliceTypeTag],
+		int64SliceType:  typeTagToFlagValue[int64SliceTypeTag],
+		stringType:      typeTagToFlagValue[stringTypeTag],
+		stringSliceType: typeTagToFlagValue[stringSliceTypeTag],
+		durationType:    typeTagToFlagValue[durationTypeTag],
+	}
+
+	typesWithoutValues = map[string]bool{
 		boolType: true,
 	}
 
@@ -276,6 +306,14 @@ func newFlagFromStructField(field reflect.StructField) cli.Flag {
 		Interface().(cli.Flag)
 }
 
+func flagNameFromStructField(field reflect.StructField) string {
+	name := field.Tag.Get(nameTag)
+	if name == "" {
+		return strings.ToLower(field.Name)
+	}
+	return name
+}
+
 func flagFromStructField(field reflect.StructField) (cli.Flag, error) {
 	var (
 		flag       cli.Flag
@@ -286,7 +324,7 @@ func flagFromStructField(field reflect.StructField) (cli.Flag, error) {
 
 	flag = newFlagFromStructField(field)
 
-	err = setStructField(flag, "Name", field.Tag.Get(nameTag))
+	err = setStructField(flag, "Name", flagNameFromStructField(field))
 	if err != nil {
 		return nil, err
 	}
@@ -296,10 +334,10 @@ func flagFromStructField(field reflect.StructField) (cli.Flag, error) {
 	}
 
 	valueString := field.Tag.Get(valueTag)
-	if valueString != "" && flagsWithoutValues[field.Type.String()] {
+	if valueString != "" && typesWithoutValues[field.Type.String()] {
 		return nil, NewErrFlagTypeCanNotHaveValue(field.Type.String())
 	}
-	if valueString != "" && !flagsWithoutValues[field.Type.String()] {
+	if valueString != "" && !typesWithoutValues[field.Type.String()] {
 		valueField, err = getStructField(flag, "Value")
 		if err != nil {
 			return nil, err
@@ -328,5 +366,58 @@ func FlagsToStruct(context *cli.Context, v interface{}) error {
 		return err
 	}
 
+	return flagsToStruct(context, v)
+}
+
+func flagsToStruct(context *cli.Context, v interface{}) error {
+	var (
+		reflectType  = indirectType(reflect.TypeOf(v))
+		reflectValue = indirectValue(reflect.ValueOf(v))
+		field        reflect.StructField
+		err          error
+	)
+
+	if !reflectValue.IsValid() {
+		return NewErrInvalid(v)
+	}
+
+	err = shouldBeStruct(reflectValue)
+	if err != nil {
+		return err
+	}
+
+	for n := 0; n < reflectValue.NumField(); n++ {
+		field = reflectType.Field(n)
+		if !isStructFieldExported(field) {
+			continue
+		}
+
+		err = setStructField(
+			v,
+			field.Name,
+			flagValueFromContext(context, field),
+		)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
+
+}
+
+func flagValueFromContext(context *cli.Context, field reflect.StructField) interface{} {
+	var (
+		p func(*cli.Context, string) interface{}
+	)
+
+	p = typeTagToFlagValue[field.Tag.Get(typeTag)]
+	if p == nil {
+		p = typeToFlagValue[field.Type.String()]
+	}
+	if p == nil {
+		p = typeTagToFlagValue[genericTypeTag]
+	}
+
+	return p(context, flagNameFromStructField(field))
 }

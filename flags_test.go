@@ -26,6 +26,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli"
 )
@@ -102,4 +103,63 @@ func TestFlagsFromStructBoolTHasNoValue(t *testing.T) {
 		return
 	}
 	assert.EqualValues(t, ([]cli.Flag)(nil), result)
+}
+
+func TestDev(t *testing.T) {
+	// FIXME: generic types is nil in .cli for some reason oO
+	// FIXME: slices are under side-effects Oo
+	//type custom struct{}
+	sample := struct {
+		Bool        bool          `name:"bool"        type:"bool"        usage:"hello"`
+		BoolT       bool          `name:"boolt"       type:"boolt"       usage:"hello"`
+		UInt        uint          `name:"uint"        type:"uint"        usage:"hello" value:"1"`
+		UInt64      uint64        `name:"uint64"      type:"uint64"      usage:"hello" value:"1"`
+		Int         int           `name:"int"         type:"int"         usage:"hello" value:"1"`
+		Int64       int64         `name:"int64"       type:"int64"       usage:"hello" value:"-1"`
+		Float64     float64       `name:"float64"     type:"float64"     usage:"hello" value:"1.5"`
+		IntSlice    []int         `name:"intslice"    type:"intslice"    usage:"hello" value:"1,2,3,-1"`
+		Int64Slice  []int64       `name:"int64slice"  type:"int64slice"  usage:"hello" value:"1,2,3,-1"`
+		String      string        `name:"string"      type:"string"      usage:"hello" value:"some string"`
+		StringSlice []string      `name:"stringslice" type:"stringslice" usage:"hello" value:"some,string,slice"`
+		Duration    time.Duration `name:"duration"    type:"duration"    usage:"hello" value:"2h1m10s"`
+		//Custom      custom        `name:"custom"      type:"generic"     usage:"hello"`
+	}{}
+
+	flags, err := FlagsFromStruct(&sample)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	ch := make(chan *cli.Context, 1)
+
+	app := cli.NewApp()
+	app.Flags = flags
+	app.Action = func(context *cli.Context) error {
+		ch <- context
+		return nil
+	}
+
+	err = app.Run(
+		[]string{
+			"--bool",
+			"--uint", "10",
+			"--uint64", "10",
+			"--int", "10",
+			"--int64", "-10",
+			"--float64", "10.05",
+			"--intslice", "5", "--intslice", "4",
+			"--int64slice", "5", "--int64slice", "4",
+			"--string", "string some",
+			"--stringslice", "string", "--stringslice", "some",
+			"--duration", "1h",
+		},
+	)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	FlagsToStruct(<-ch, &sample)
+	spew.Dump(sample)
 }
