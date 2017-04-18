@@ -26,7 +26,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli"
 )
@@ -105,11 +104,10 @@ func TestFlagsFromStructBoolThasNoValue(t *testing.T) {
 	assert.EqualValues(t, ([]cli.Flag)(nil), result)
 }
 
-func TestDev(t *testing.T) {
+func TestFlagsRoStructWithTags(t *testing.T) {
 	// FIXME: generic types is nil in .cli for some reason oO
-	// FIXME: slices are under side-effects Oo
 	//type custom struct{}
-	sample := struct {
+	type Sample struct {
 		Bool        bool          `name:"bool"        type:"bool"        usage:"hello"`
 		BoolT       bool          `name:"boolt"       type:"boolt"       usage:"hello"`
 		UInt        uint          `name:"uint"        type:"uint"        usage:"hello" value:"1"`
@@ -123,7 +121,9 @@ func TestDev(t *testing.T) {
 		StringSlice []string      `name:"stringslice" type:"stringslice" usage:"hello" value:"some,string,slice"`
 		Duration    time.Duration `name:"duration"    type:"duration"    usage:"hello" value:"2h1m10s"`
 		//Custom      custom        `name:"custom"      type:"generic"     usage:"hello"`
-	}{}
+	}
+
+	sample := &Sample{}
 
 	flags, err := FlagsFromStruct(&sample)
 	if err != nil {
@@ -132,6 +132,7 @@ func TestDev(t *testing.T) {
 	}
 
 	ch := make(chan *cli.Context, 1)
+	defer close(ch)
 
 	app := cli.NewApp()
 	app.Flags = flags
@@ -141,7 +142,9 @@ func TestDev(t *testing.T) {
 	}
 
 	err = app.Run(
+		// XXX: First argument is a program name, so it is empty.
 		[]string{
+			"",
 			"--bool",
 			"--uint", "10",
 			"--uint64", "10",
@@ -151,7 +154,7 @@ func TestDev(t *testing.T) {
 			"--intslice", "5", "--intslice", "4",
 			"--int64slice", "5", "--int64slice", "4",
 			"--string", "string some",
-			"--stringslice", "string", "--stringslice", "some",
+			"--stringslice", "and", "--stringslice", "others",
 			"--duration", "1h",
 		},
 	)
@@ -160,6 +163,26 @@ func TestDev(t *testing.T) {
 		return
 	}
 
-	FlagsToStruct(<-ch, &sample)
-	spew.Dump(sample)
+	err = FlagsToStruct(<-ch, sample)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	expectedSample := &Sample{
+		Bool:        true,
+		BoolT:       true,
+		UInt:        10,
+		UInt64:      10,
+		Int:         10,
+		Int64:       -10,
+		Float64:     10.05,
+		IntSlice:    []int{1, 2, 3, -1, 5, 4},
+		Int64Slice:  []int64{1, 2, 3, -1, 5, 4},
+		String:      "string some",
+		StringSlice: []string{"some", "string", "slice", "and", "others"},
+		Duration:    time.Hour,
+	}
+
+	assert.EqualValues(t, expectedSample, sample)
 }

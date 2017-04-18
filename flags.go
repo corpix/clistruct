@@ -32,7 +32,6 @@ import (
 )
 
 const (
-	fieldTag = "cli"
 	nameTag  = "name"
 	typeTag  = "type"
 	usageTag = "usage"
@@ -41,6 +40,7 @@ const (
 
 const (
 	listDelimiter = ","
+	nameDelimiter = ","
 )
 
 const (
@@ -86,6 +86,8 @@ var (
 	durationValueType    = durationType
 )
 
+type valueGetter func(*cli.Context, string) interface{}
+
 var (
 	typeTagToFlag = map[string]cli.Flag{
 		boolTypeTag:        *new(cli.BoolFlag),
@@ -103,7 +105,7 @@ var (
 		genericTypeTag:     *new(cli.GenericFlag),
 	}
 
-	typeTagToFlagValue = map[string]func(*cli.Context, string) interface{}{
+	typeTagToFlagValueGetter = map[string]valueGetter{
 		boolTypeTag:        func(ctx *cli.Context, key string) interface{} { return ctx.Bool(key) },
 		boolTTypeTag:       func(ctx *cli.Context, key string) interface{} { return ctx.BoolT(key) },
 		uintTypeTag:        func(ctx *cli.Context, key string) interface{} { return ctx.Uint(key) },
@@ -133,18 +135,18 @@ var (
 		durationType:    typeTagToFlag[durationTypeTag],
 	}
 
-	typeToFlagValue = map[string]func(*cli.Context, string) interface{}{
-		boolType:        typeTagToFlagValue[boolTypeTag],
-		uintType:        typeTagToFlagValue[uintTypeTag],
-		uint64Type:      typeTagToFlagValue[uint64TypeTag],
-		intType:         typeTagToFlagValue[intTypeTag],
-		int64Type:       typeTagToFlagValue[int64TypeTag],
-		float64Type:     typeTagToFlagValue[float64TypeTag],
-		intSliceType:    typeTagToFlagValue[intSliceTypeTag],
-		int64SliceType:  typeTagToFlagValue[int64SliceTypeTag],
-		stringType:      typeTagToFlagValue[stringTypeTag],
-		stringSliceType: typeTagToFlagValue[stringSliceTypeTag],
-		durationType:    typeTagToFlagValue[durationTypeTag],
+	typeToFlagValueGetter = map[string]valueGetter{
+		boolType:        typeTagToFlagValueGetter[boolTypeTag],
+		uintType:        typeTagToFlagValueGetter[uintTypeTag],
+		uint64Type:      typeTagToFlagValueGetter[uint64TypeTag],
+		intType:         typeTagToFlagValueGetter[intTypeTag],
+		int64Type:       typeTagToFlagValueGetter[int64TypeTag],
+		float64Type:     typeTagToFlagValueGetter[float64TypeTag],
+		intSliceType:    typeTagToFlagValueGetter[intSliceTypeTag],
+		int64SliceType:  typeTagToFlagValueGetter[int64SliceTypeTag],
+		stringType:      typeTagToFlagValueGetter[stringTypeTag],
+		stringSliceType: typeTagToFlagValueGetter[stringSliceTypeTag],
+		durationType:    typeTagToFlagValueGetter[durationTypeTag],
 	}
 
 	typesWithoutValues = map[string]bool{
@@ -275,13 +277,55 @@ func flagsFromStruct(v interface{}) ([]cli.Flag, error) {
 	return flags, nil
 }
 
-func parseValueFromString(v string, targetType reflect.Type) (interface{}, error) {
-	parser, ok := valueFromString[targetType.String()]
-	if ok {
-		return parser(v)
+// FlagsToStruct folds a flags from context into the struct fields in v.
+func FlagsToStruct(context *cli.Context, v interface{}) error {
+	err := checkValue(v)
+	if err != nil {
+		return err
 	}
 
-	return v, nil
+	return flagsToStruct(context, v)
+}
+
+func flagsToStruct(context *cli.Context, v interface{}) error {
+	var (
+		reflectType  = indirectType(reflect.TypeOf(v))
+		reflectValue = indirectValue(reflect.ValueOf(v))
+		field        reflect.StructField
+		err          error
+	)
+
+	if !reflectValue.IsValid() {
+		return NewErrInvalid(v)
+	}
+
+	err = shouldBeStruct(reflectValue)
+	if err != nil {
+		return err
+	}
+
+	for n := 0; n < reflectValue.NumField(); n++ {
+		field = reflectType.Field(n)
+		if !isStructFieldExported(field) {
+			continue
+		}
+
+		err = setStructField(
+			v,
+			field.Name,
+			flagValueFromContext(
+				context,
+				flagValueGetterFromStructField(field),
+				flagNameFromStructField(field),
+			),
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+
 }
 
 func newFlagFromStructField(field reflect.StructField) cli.Flag {
@@ -304,14 +348,6 @@ func newFlagFromStructField(field reflect.StructField) cli.Flag {
 			),
 		).
 		Interface().(cli.Flag)
-}
-
-func flagNameFromStructField(field reflect.StructField) string {
-	name := field.Tag.Get(nameTag)
-	if name == "" {
-		return strings.ToLower(field.Name)
-	}
-	return name
 }
 
 func flagFromStructField(field reflect.StructField) (cli.Flag, error) {
@@ -359,65 +395,41 @@ func flagFromStructField(field reflect.StructField) (cli.Flag, error) {
 	return flag, nil
 }
 
-// FlagsToStruct folds a flags from context into the struct fields in v.
-func FlagsToStruct(context *cli.Context, v interface{}) error {
-	err := checkValue(v)
-	if err != nil {
-		return err
+func flagNameFromStructField(field reflect.StructField) string {
+	names := strings.Split(
+		field.Tag.Get(nameTag),
+		nameDelimiter,
+	)
+	if len(names) == 0 {
+		return strings.ToLower(field.Name)
 	}
-
-	return flagsToStruct(context, v)
+	return names[0]
 }
 
-func flagsToStruct(context *cli.Context, v interface{}) error {
+func flagValueGetterFromStructField(field reflect.StructField) valueGetter {
 	var (
-		reflectType  = indirectType(reflect.TypeOf(v))
-		reflectValue = indirectValue(reflect.ValueOf(v))
-		field        reflect.StructField
-		err          error
+		getter = typeTagToFlagValueGetter[field.Tag.Get(typeTag)]
 	)
 
-	if !reflectValue.IsValid() {
-		return NewErrInvalid(v)
+	if getter == nil {
+		getter = typeToFlagValueGetter[field.Type.String()]
+	}
+	if getter == nil {
+		getter = typeTagToFlagValueGetter[genericTypeTag]
 	}
 
-	err = shouldBeStruct(reflectValue)
-	if err != nil {
-		return err
-	}
-
-	for n := 0; n < reflectValue.NumField(); n++ {
-		field = reflectType.Field(n)
-		if !isStructFieldExported(field) {
-			continue
-		}
-
-		err = setStructField(
-			v,
-			field.Name,
-			flagValueFromContext(context, field),
-		)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-
+	return getter
 }
 
-func flagValueFromContext(context *cli.Context, field reflect.StructField) interface{} {
-	var (
-		p func(*cli.Context, string) interface{}
-	)
+func flagValueFromContext(context *cli.Context, getter valueGetter, name string) interface{} {
+	return getter(context, name)
+}
 
-	p = typeTagToFlagValue[field.Tag.Get(typeTag)]
-	if p == nil {
-		p = typeToFlagValue[field.Type.String()]
-	}
-	if p == nil {
-		p = typeTagToFlagValue[genericTypeTag]
+func parseValueFromString(v string, targetType reflect.Type) (interface{}, error) {
+	getter, ok := valueFromString[targetType.String()]
+	if ok {
+		return getter(v)
 	}
 
-	return p(context, flagNameFromStructField(field))
+	return v, nil
 }
