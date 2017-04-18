@@ -88,17 +88,17 @@ var (
 
 var (
 	typeToFlag = map[string]cli.Flag{
-		boolType:        new(cli.BoolFlag),
-		uintType:        new(cli.UintFlag),
-		uint64Type:      new(cli.Uint64Flag),
-		intType:         new(cli.IntFlag),
-		int64Type:       new(cli.Int64Flag),
-		float64Type:     new(cli.Float64Flag),
-		intSliceType:    new(cli.IntSliceFlag),
-		int64SliceType:  new(cli.Int64SliceFlag),
-		stringType:      new(cli.StringFlag),
-		stringSliceType: new(cli.StringSliceFlag),
-		durationType:    new(cli.DurationFlag),
+		boolType:        *new(cli.BoolFlag),
+		uintType:        *new(cli.UintFlag),
+		uint64Type:      *new(cli.Uint64Flag),
+		intType:         *new(cli.IntFlag),
+		int64Type:       *new(cli.Int64Flag),
+		float64Type:     *new(cli.Float64Flag),
+		intSliceType:    *new(cli.IntSliceFlag),
+		int64SliceType:  *new(cli.Int64SliceFlag),
+		stringType:      *new(cli.StringFlag),
+		stringSliceType: *new(cli.StringSliceFlag),
+		durationType:    *new(cli.DurationFlag),
 	}
 
 	typeTagToFlag = map[string]cli.Flag{
