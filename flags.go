@@ -56,15 +56,15 @@ const (
 var (
 	fieldToFlag = map[string]cli.Flag{
 		typeName(new(bool)):          new(cli.BoolFlag),
-		typeName(new(float64)):       new(cli.Float64Flag),
+		typeName(new(uint)):          new(cli.UintFlag),
+		typeName(new(uint64)):        new(cli.Uint64Flag),
 		typeName(new(int)):           new(cli.IntFlag),
 		typeName(new(int64)):         new(cli.Int64Flag),
+		typeName(new(float64)):       new(cli.Float64Flag),
 		typeName(new([]int)):         new(cli.IntSliceFlag),
 		typeName(new([]int64)):       new(cli.Int64SliceFlag),
 		typeName(new(string)):        new(cli.StringFlag),
 		typeName(new([]string)):      new(cli.StringSliceFlag),
-		typeName(new(uint)):          new(cli.UintFlag),
-		typeName(new(uint64)):        new(cli.Uint64Flag),
 		typeName(new(time.Duration)): new(cli.DurationFlag),
 	}
 
@@ -168,11 +168,10 @@ func flagFromStructField(field reflect.StructField) (cli.Flag, error) {
 	if err != nil {
 		return nil, err
 	}
-	// FIXME: Values should be parsed
-	// err = setStructField(flag, "Value", field.Tag.Get(valueTag))
-	// if err != nil {
-	// 	return nil, err
-	// }
+	err = setStructField(flag, "Value", field.Tag.Get(valueTag))
+	if err != nil {
+		return nil, err
+	}
 
 	return flag, nil
 }
@@ -189,15 +188,51 @@ func FlagsToStruct(context *cli.Context, v interface{}) error {
 
 //
 
-func setStructField(v interface{}, fieldName string, value interface{}) error {
+// func convertType(field reflect.Value) {
+// 	switch field.Interface().(type) {
+// 	case bool:
+// 		strconv.ParseBool(reflectValue.Interface().(string))
+// 	case uint:
+// 	case uint64:
+// 	case int:
+// 	case int64:
+// 	case float64:
+// 	case []int:
+// 	case []int64:
+// 	case string:
+// 	case []string:
+// 	case time.Duration:
+// 	}
+// }
+
+func getStructField(v interface{}, fieldName string) (reflect.Value, error) {
 	field := indirectValue(reflect.ValueOf(v)).
 		FieldByName(fieldName)
 
 	if !field.IsValid() || !field.CanSet() {
-		return NewErrInvalid(v)
+		return reflect.Value{}, NewErrInvalid(v)
 	}
 
-	field.Set(reflect.ValueOf(value))
+	return field, nil
+}
+
+func setStructField(v interface{}, fieldName string, value interface{}) error {
+	field, err := getStructField(v, fieldName)
+	if err != nil {
+		return err
+	}
+
+	reflectValue := reflect.ValueOf(value)
+
+	if field.Type() != reflectValue.Type() {
+		return NewErrTypeMistmatch(
+			field.Type().String(),
+			reflectValue.Type().String(),
+		)
+	}
+
+	field.Set(reflectValue)
+
 	return nil
 }
 

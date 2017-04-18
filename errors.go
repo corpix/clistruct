@@ -84,3 +84,25 @@ func (e *ErrPtrRequired) Error() string {
 func NewErrPtrRequired(v interface{}) error {
 	return &ErrPtrRequired{v}
 }
+
+//
+
+// ErrTypeMistmatch is an error indicating that a wanted type
+// is not equal to actual.
+type ErrTypeMistmatch struct {
+	want string
+	got  string
+}
+
+func (e *ErrTypeMistmatch) Error() string {
+	return fmt.Sprintf(
+		"Type mistmatch, want '%s', got '%s'",
+		e.want,
+		e.got,
+	)
+}
+
+// NewErrTypeMistmatch creates new ErrTypeMistmatch.
+func NewErrTypeMistmatch(want string, got string) error {
+	return &ErrTypeMistmatch{want, got}
+}
