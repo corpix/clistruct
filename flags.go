@@ -386,7 +386,7 @@ func flagFromStructField(field reflect.StructField) (cli.Flag, error) {
 		if err != nil {
 			return nil, err
 		}
-		value, err = parseValueFromString(
+		value, err = getValueFromString(
 			valueString,
 			valueField.Type(),
 		)
@@ -435,7 +435,7 @@ func flagValueFromContext(context *cli.Context, getter valueGetter, name string)
 	return getter(context, name)
 }
 
-func parseValueFromString(v string, targetType reflect.Type) (interface{}, error) {
+func getValueFromString(v string, targetType reflect.Type) (interface{}, error) {
 	getter, ok := valueFromString[targetType.String()]
 	if ok {
 		return getter(v)
