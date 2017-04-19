@@ -7,8 +7,8 @@ Go struct mapper for [urfave/cli](https://github.com/urfave/cli).
 
 ## Mapping what?
 
-- Struct field types into flags
-- Parsed flags into struct fields
+- Structure fields into flag declarations
+- Parsed flags values into structure fields
 
 ## Limitations
 
