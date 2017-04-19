@@ -24,6 +24,7 @@ package clistruct
 
 import (
 	"reflect"
+	"strings"
 )
 
 func getStructField(v interface{}, fieldName string) (reflect.Value, error) {
@@ -101,4 +102,8 @@ func indirectType(reflectType reflect.Type) reflect.Type {
 
 func typeName(v interface{}) string {
 	return reflect.TypeOf(v).String()
+}
+
+func getStructFieldTag(field reflect.StructField, name string) string {
+	return strings.TrimSpace(field.Tag.Get(name))
 }

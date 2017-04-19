@@ -333,7 +333,7 @@ func newFlagFromStructField(field reflect.StructField) cli.Flag {
 		t cli.Flag
 	)
 
-	t = typeTagToFlag[field.Tag.Get(typeTag)]
+	t = typeTagToFlag[getStructFieldTag(field, typeTag)]
 	if t == nil {
 		t = typeToFlag[field.Type.String()]
 	}
@@ -360,16 +360,24 @@ func flagFromStructField(field reflect.StructField) (cli.Flag, error) {
 
 	flag = newFlagFromStructField(field)
 
-	err = setStructField(flag, "Name", flagNameFromStructField(field))
+	err = setStructField(
+		flag,
+		"Name",
+		flagNameFromStructField(field),
+	)
 	if err != nil {
 		return nil, err
 	}
-	err = setStructField(flag, "Usage", field.Tag.Get(usageTag))
+	err = setStructField(
+		flag,
+		"Usage",
+		getStructFieldTag(field, usageTag),
+	)
 	if err != nil {
 		return nil, err
 	}
 
-	valueString := field.Tag.Get(valueTag)
+	valueString := getStructFieldTag(field, valueTag)
 	if valueString != "" && typesWithoutValues[field.Type.String()] {
 		return nil, NewErrFlagTypeCanNotHaveValue(field.Type.String())
 	}
@@ -396,19 +404,21 @@ func flagFromStructField(field reflect.StructField) (cli.Flag, error) {
 }
 
 func flagNameFromStructField(field reflect.StructField) string {
-	names := strings.Split(
-		field.Tag.Get(nameTag),
-		nameDelimiter,
-	)
-	if len(names) == 0 {
+	name := getStructFieldTag(field, nameTag)
+
+	if name == "" {
 		return strings.ToLower(field.Name)
 	}
-	return names[0]
+
+	return strings.Split(
+		name,
+		nameDelimiter,
+	)[0]
 }
 
 func flagValueGetterFromStructField(field reflect.StructField) valueGetter {
 	var (
-		getter = typeTagToFlagValueGetter[field.Tag.Get(typeTag)]
+		getter = typeTagToFlagValueGetter[getStructFieldTag(field, typeTag)]
 	)
 
 	if getter == nil {

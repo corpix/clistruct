@@ -72,6 +72,48 @@ func TestFlagsFromStructWithTags(t *testing.T) {
 	assert.EqualValues(t, flags, result)
 }
 
+func TestFlagsFromStructWithoutNameTags(t *testing.T) {
+	type custom struct{}
+
+	sample := struct {
+		Bool        bool          `type:"bool"        usage:"hello"`
+		BoolT       bool          `type:"boolt"       usage:"hello"`
+		UInt        uint          `type:"uint"        usage:"hello" value:"1"`
+		UInt64      uint64        `type:"uint64"      usage:"hello" value:"1"`
+		Int         int           `type:"int"         usage:"hello" value:"1"`
+		Int64       int64         `type:"int64"       usage:"hello" value:"-1"`
+		Float64     float64       `type:"float64"     usage:"hello" value:"1.5"`
+		IntSlice    []int         `type:"intslice"    usage:"hello" value:"1,2,3,-1"`
+		Int64Slice  []int64       `type:"int64slice"  usage:"hello" value:"1,2,3,-1"`
+		String      string        `type:"string"      usage:"hello" value:"some string"`
+		StringSlice []string      `type:"stringslice" usage:"hello" value:"some,string,slice"`
+		Duration    time.Duration `type:"duration"    usage:"hello" value:"2h1m10s"`
+		Custom      custom        `type:"generic"     usage:"hello"`
+	}{}
+	flags := []cli.Flag{
+		cli.BoolFlag{Name: "bool", Usage: "hello"},
+		cli.BoolTFlag{Name: "boolt", Usage: "hello"},
+		cli.UintFlag{Name: "uint", Usage: "hello", Value: uint(1)},
+		cli.Uint64Flag{Name: "uint64", Usage: "hello", Value: uint64(1)},
+		cli.IntFlag{Name: "int", Usage: "hello", Value: 1},
+		cli.Int64Flag{Name: "int64", Usage: "hello", Value: int64(-1)},
+		cli.Float64Flag{Name: "float64", Usage: "hello", Value: float64(1.5)},
+		cli.IntSliceFlag{Name: "intslice", Usage: "hello", Value: &cli.IntSlice{1, 2, 3, -1}},
+		cli.Int64SliceFlag{Name: "int64slice", Usage: "hello", Value: &cli.Int64Slice{1, 2, 3, -1}},
+		cli.StringFlag{Name: "string", Usage: "hello", Value: "some string"},
+		cli.StringSliceFlag{Name: "stringslice", Usage: "hello", Value: &cli.StringSlice{"some", "string", "slice"}},
+		cli.DurationFlag{Name: "duration", Usage: "hello", Value: (2 * 60 * time.Minute) + (time.Minute) + (10 * time.Second)},
+		cli.GenericFlag{Name: "custom", Usage: "hello"},
+	}
+
+	result, err := FlagsFromStruct(&sample)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	assert.EqualValues(t, flags, result)
+}
+
 func TestFlagsFromStructBoolHasNoValue(t *testing.T) {
 	sample := struct {
 		Bool bool `name:"bool"        type:"bool"        usage:"hello" value:"true"`
