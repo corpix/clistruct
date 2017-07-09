@@ -50,8 +50,8 @@ check: lint test
 
 .PHON: tools
 tools:
-	if [ ! -e "$(GOPATH)"/src/"github.com/kardianos/govendor" ]; then go get github.com/kardianos/govendor; fi
-	if [ ! -e "$(GOPATH)"/src/"github.com/rogpeppe/godef" ]; then go get github.com/rogpeppe/godef; fi
-	if [ ! -e "$(GOPATH)"/src/"github.com/nsf/gocode" ]; then go get github.com/nsf/gocode; fi
+	if [ ! -e "$(GOPATH)"/bin/govendor ]; then go get -u github.com/kardianos/govendor; fi
+	if [ ! -e "$(GOPATH)"/bin/godef ]; then go get -u github.com/rogpeppe/godef; fi
+	if [ ! -e "$(GOPATH)"/bin/gocode ]; then go get -u github.com/nsf/gocode; fi
+	if [ ! -e "$(GOPATH)"/bin/gometalinter ]; then go get -u github.com/alecthomas/gometalinter && gometalinter --install; fi
 	if [ ! -e "$(GOPATH)"/src/"github.com/stretchr/testify/assert" ]; then go get github.com/stretchr/testify/assert; fi
-	if [ ! -e "$(GOPATH)"/src/"github.com/alecthomas/gometalinter" ]; then go get github.com/alecthomas/gometalinter && gometalinter --install; fi
