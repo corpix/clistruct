@@ -1,0 +1,9 @@
+package: github.com/corpix/clistruct
+import:
+- package: github.com/urfave/cli
+  version: v1.19.1
+testImport:
+- package: github.com/stretchr/testify
+  version: v1.1.4
+  subpackages:
+  - assert

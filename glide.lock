@@ -1,0 +1,18 @@
+hash: c398839009a134689633406946b2d475e76c6c3a860e351a95e4afd742694187
+updated: 2017-07-12T20:08:20.875578878Z
+imports:
+- name: github.com/urfave/cli
+  version: 0bdeddeeb0f650497d603c4ad7b20cfe685682f6
+testImports:
+- name: github.com/davecgh/go-spew
+  version: 6d212800a42e8ab5c146b8ace3490ee17e5225f9
+  subpackages:
+  - spew
+- name: github.com/pmezard/go-difflib
+  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
+  subpackages:
+  - difflib
+- name: github.com/stretchr/testify
+  version: 69483b4bd14f5845b5a1e55bca19e954e827f1d0
+  subpackages:
+  - assert
